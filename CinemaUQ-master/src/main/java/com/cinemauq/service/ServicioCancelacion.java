@@ -1,10 +1,13 @@
 package com.cinemauq.service;
 
+import com.cinemauq.exception.CancelacionNoPermitidaException;
 import com.cinemauq.exception.OperacionYaReembolsadaException;
 import com.cinemauq.model.Compra;
 import com.cinemauq.model.Entrada;
 import com.cinemauq.model.Funcion;
 import com.cinemauq.model.Reembolso;
+import com.cinemauq.patterns.behavioral.PoliticaCancelacion;
+import com.cinemauq.patterns.behavioral.SelectorPoliticaCancelacion;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -14,12 +17,6 @@ import java.util.UUID;
 
 public class ServicioCancelacion {
 
-    private static final long HORAS_REEMBOLSO_TOTAL = 24;
-    private static final long HORAS_REEMBOLSO_PARCIAL = 2;
-    private static final double PORCENTAJE_TOTAL = 1.0;
-    private static final double PORCENTAJE_PARCIAL = 0.80;
-    private static final double PORCENTAJE_NULO = 0.0;
-
     private final Set<String> comprasReembolsadas = new HashSet<>();
 
     public Reembolso solicitarCancelacion(Compra compra) {
@@ -28,18 +25,15 @@ public class ServicioCancelacion {
         }
 
         long horasRestantes = calcularHorasRestantes(compra);
-        double porcentaje = calcularPorcentajeDevolucion(horasRestantes);
-        return ejecutarReembolso(compra, porcentaje);
-    }
+        PoliticaCancelacion politica = SelectorPoliticaCancelacion.seleccionar(horasRestantes);
 
-    /**
-     * RN-08: mas de 24 h -> 100 %; entre 2 h y 24 h (inclusive) -> 80 %; menos de 2 h -> 0 %.
-     * La cancelacion se acepta en todos los tramos; solo cambia el porcentaje devuelto.
-     */
-    private double calcularPorcentajeDevolucion(long horasRestantes) {
-        if (horasRestantes > HORAS_REEMBOLSO_TOTAL) return PORCENTAJE_TOTAL;
-        if (horasRestantes >= HORAS_REEMBOLSO_PARCIAL) return PORCENTAJE_PARCIAL;
-        return PORCENTAJE_NULO;
+        if (!politica.esCancelacionPermitida(horasRestantes)) {
+            throw new CancelacionNoPermitidaException(
+                    "No se permite cancelar: faltan " + horasRestantes + " hora(s) para la funcion (RN-08).");
+        }
+
+        double porcentaje = politica.calcularPorcentajeDevolucion(horasRestantes);
+        return ejecutarReembolso(compra, porcentaje);
     }
 
     public Reembolso cancelarPorFuncionCancelada(Compra compra) {

@@ -4,21 +4,16 @@ import com.cinemauq.exception.AsientoNoDisponibleException;
 import com.cinemauq.exception.SaldoInsuficienteException;
 import com.cinemauq.exception.TarjetaInactivaException;
 import com.cinemauq.model.*;
+import com.cinemauq.patterns.behavioral.ObservadorNotificaciones;
+import com.cinemauq.patterns.behavioral.ObservadorPuntos;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class ServicioCompraFacade {
 
-    private final ServicioPuntos servicioPuntos;
-    private final List<String> notificaciones = new ArrayList<>();
+    private final ObservadorNotificaciones observadorNotificaciones = new ObservadorNotificaciones();
 
-    public ServicioCompraFacade(ServicioPuntos servicioPuntos) {
-        this.servicioPuntos = servicioPuntos;
-    }
-
-    public List<String> getNotificaciones() { return Collections.unmodifiableList(notificaciones); }
+    public ObservadorNotificaciones getObservadorNotificaciones() { return observadorNotificaciones; }
 
     public Compra iniciarProcesoCompra(Cliente cliente, Funcion funcion, List<Asiento> asientosSeleccionados,
                                         List<ItemConfiteria> confiteria, String nombrePromocion, double porcentajeDescuento) {
@@ -47,7 +42,12 @@ public class ServicioCompraFacade {
                 builder.conPromocion(nombrePromocion, porcentajeDescuento);
             }
 
-            return builder.build();
+            Compra compra = builder.build();
+
+            compra.adjuntarObservador(new ObservadorPuntos());
+            compra.adjuntarObservador(observadorNotificaciones);
+
+            return compra;
         } catch (RuntimeException ex) {
             for (Asiento asiento : asientosSeleccionados) {
                 funcion.liberarAsiento(asiento);
@@ -73,18 +73,9 @@ public class ServicioCompraFacade {
             return false;
         }
 
-        if (compra.confirmar()) {
-            servicioPuntos.acumularPorCompra(compra);
-            registrarNotificacion(compra);
-        }
+        compra.confirmar();
         compra.getCliente().registrarCompra(compra);
         return true;
-    }
-
-    private void registrarNotificacion(Compra compra) {
-        String mensaje = "Tu compra " + compra.getId() + " ahora esta " + compra.getEstado().getNombre();
-        notificaciones.add(mensaje);
-        System.out.println("[Notificacion] " + mensaje);
     }
 
     private void liberarAsientosPorFallo(Compra compra) {

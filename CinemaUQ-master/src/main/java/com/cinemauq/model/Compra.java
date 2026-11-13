@@ -1,12 +1,17 @@
 package com.cinemauq.model;
 
+import com.cinemauq.patterns.behavioral.CompraSubject;
+import com.cinemauq.patterns.behavioral.EstadoCompra;
+import com.cinemauq.patterns.behavioral.EstadoPendiente;
+import com.cinemauq.patterns.behavioral.ObservadorCompra;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-public class Compra {
+public class Compra implements CompraSubject {
 
     private final String id;
     private final Cliente cliente;
@@ -18,6 +23,7 @@ public class Compra {
     private final double total;
     private final TarjetaVirtual tarjetaUtilizada;
     private EstadoCompra estado;
+    private final List<ObservadorCompra> observadores = new ArrayList<>();
 
     private Compra(Builder builder) {
         this.id = "CMP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
@@ -40,7 +46,7 @@ public class Compra {
             this.promocionAplicada = null;
         }
         this.total = calculable.calcularPrecio();
-        this.estado = EstadoCompra.PENDIENTE;
+        this.estado = new EstadoPendiente();
     }
 
     public String getId() { return id; }
@@ -54,34 +60,17 @@ public class Compra {
     public TarjetaVirtual getTarjetaUtilizada() { return tarjetaUtilizada; }
     public EstadoCompra getEstado() { return estado; }
 
-    /**
-     * Confirma la compra si esta pendiente.
-     *
-     * @return {@code true} si la compra paso de PENDIENTE a CONFIRMADA; {@code false} si ya estaba confirmada.
-     * @throws IllegalStateException si la compra esta cancelada.
-     */
-    public boolean confirmar() {
-        if (estado == EstadoCompra.CANCELADA) {
-            throw new IllegalStateException("No se puede procesar una compra cancelada.");
-        }
-        if (estado == EstadoCompra.CONFIRMADA) {
-            System.out.println("La compra " + id + " ya se encuentra confirmada.");
-            return false;
-        }
-        estado = EstadoCompra.CONFIRMADA;
-        return true;
-    }
+    public void cambiarEstado(EstadoCompra nuevoEstado) { this.estado = nuevoEstado; }
 
-    /**
-     * Marca la compra como cancelada.
-     *
-     * @throws IllegalStateException si la compra ya estaba cancelada (protege RN-11).
-     */
-    public void cancelarCompra() {
-        if (estado == EstadoCompra.CANCELADA) {
-            throw new IllegalStateException("La compra ya se encuentra cancelada (protege RN-11).");
-        }
-        estado = EstadoCompra.CANCELADA;
+    public void confirmar() { estado.procesar(this); }
+    public void cancelarCompra() { estado.cancelar(this); }
+
+    @Override
+    public void adjuntarObservador(ObservadorCompra observador) { observadores.add(observador); }
+
+    @Override
+    public void notificarObservadores() {
+        for (ObservadorCompra obs : observadores) obs.actualizar(this);
     }
 
     @Override

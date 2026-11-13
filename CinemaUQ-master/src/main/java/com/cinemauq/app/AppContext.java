@@ -15,9 +15,9 @@ public class AppContext {
 
     private final DataStore dataStore = new DataStore();
     private final GestorSesion gestorSesion = new GestorSesion();
-    private final ServicioPuntos servicioPuntos = new ServicioPuntos();
-    private final ServicioCompraFacade servicioCompra = new ServicioCompraFacade(servicioPuntos);
+    private final ServicioCompraFacade servicioCompra = new ServicioCompraFacade();
     private final ServicioTarjeta servicioTarjeta = new ServicioTarjeta();
+    private final ServicioPuntos servicioPuntos = new ServicioPuntos();
     private final ServicioCancelacion servicioCancelacion = new ServicioCancelacion();
     private final ServicioReporte servicioReporte = new ServicioReporte(dataStore);
 
